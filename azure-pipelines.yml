@@ -1,19 +1,46 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-- main
+  branches:
+    include:
+      - main
 
 pool:
-  vmImage: ubuntu-latest
+  name: 'Default'  # You can change this to use your self-hosted agent pool
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+- task: UseDotNet@2
+  inputs:
+    packageType: 'sdk'
+    version: '8.x'  # Use .NET 8 SDK
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+- task: DotNetCoreCLI@2  # Replaced the Restore task with DotNetCoreCLI
+  inputs:
+    command: 'restore'
+    projects: '**/*.csproj'
+
+- task: DotNetCoreCLI@2  # Replaced the Build task with DotNetCoreCLI
+  inputs:
+    command: 'build'
+    projects: '**/*.sln'
+
+- task: DotNetCoreCLI@2  # Replaced the Pack task with DotNetCoreCLI
+  inputs:
+    command: 'pack'
+    packagesToPack: '**/*.csproj'
+    versioningScheme: 'off'
+    includeSource: true
+    includeSymbols: true
+    outputDir: '$(Build.ArtifactStagingDirectory)/nuget'
+
+- task: NuGetCommand@2  # Push task is still the same
+  inputs:
+    command: 'push'
+    packagesToPush: '$(Build.ArtifactStagingDirectory)/nuget/*.nupkg'
+    nuGetFeedType: 'internal'
+    publishFeed: 'your-azure-artifacts-feed-name'  # Replace with your actual feed name
+
+- task: DotNetCoreCLI@2  # Restore task for NuGet packages
+  inputs:
+    command: 'restore'
+    restoreSolution: '**/*.sln'
+    feedsToUse: 'select'
+    vstsFeed: '69e6b92-xxxxxxxx-xxxx-xxxx-xxxxxxxxxxxx'  # Replace with your actual feed ID
